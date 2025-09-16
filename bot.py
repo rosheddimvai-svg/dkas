@@ -97,7 +97,10 @@ async def get_signal_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"**শেষ:** `{formatted_end_time}`\n"
         f"\n"
         f"**পরবর্তী সিগন্যালগুলো:**\n"
-        f"{signal_list}"
+        f"{signal_list}\n"
+        f"**──────────────────────**\n"
+        f"✨ **সফলতা নিশ্চিত করতে আমাদের সাথে থাকুন!** ✨\n"
+        f"**──────────────────────**"
     )
     
     await update.message.reply_text(signal_message, parse_mode='Markdown')
