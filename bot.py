@@ -5,6 +5,7 @@ import asyncio
 import time
 from datetime import datetime
 import pytz
+import random
 
 # --- আপনার দেওয়া তথ্য ---
 BOT_TOKEN = "7845699149:AAEEKpzHFt5gd6LbApfXSsE8de64f8IaGx0"
