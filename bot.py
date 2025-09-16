@@ -9,6 +9,7 @@ import random
 
 # --- আপনার দেওয়া তথ্য ---
 BOT_TOKEN = "7845699149:AAEEKpzHFt5gd6LbApfXSsE8de64f8IaGx0"
+ADMIN_ID = "@Soyabur_AS_leaders" # এখানে আপনার অ্যাডমিন আইডি দিন
 # --- তথ্য শেষ ---
 
 # বাংলাদেশ টাইমজোন সেট করা
@@ -54,16 +55,16 @@ async def get_signal_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text("দুঃখিত! আপনি একই মিনিটে একাধিক সিগন্যাল নিতে পারবেন না। দয়া করে একটু অপেক্ষা করুন।")
         return
     
-    # বর্তমান পিরিয়ড আইডি তৈরি করা
+    # বর্তমান তারিখ এবং সময় তৈরি করা
     current_datetime_bst = datetime.now(BANGLADESH_TIMEZONE)
-    period_id = current_datetime_bst.strftime('%Y%m%d%H%M')
+    formatted_time = current_datetime_bst.strftime('%H:%M:%S')
     
     # একটি র্যান্ডম সিগন্যাল তৈরি করা
     signal = generate_random_signal()
     
     signal_message = (
-        f"🎯 **বর্তমান পিরিয়ড:** {period_id}\n"
-        f"💡 **আমাদের সিগন্যাল:** পরবর্তী ফলাফল `{signal}` হতে পারে।"
+        f"⏰ **বর্তমান সময়:** {formatted_time}\n"
+        f"🔮 **আমাদের পরবর্তী সিগন্যাল:** `{signal}`"
     )
     
     await update.message.reply_text(signal_message, parse_mode='Markdown')
@@ -73,7 +74,7 @@ async def get_signal_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 # কন্টাক্ট এডমিন হ্যান্ডেলার
 async def contact_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("👨‍💻 অ্যাডমিন এর সাথে যোগাযোগ করতে এখানে ক্লিক করুন: @Soyabur_AS_leaders")
+    await update.message.reply_text(f"👨‍💻 অ্যাডমিন এর সাথে যোগাযোগ করতে এখানে ক্লিক করুন: {ADMIN_ID}")
 
 # রুলস দেখানোর জন্য হ্যান্ডেলার
 async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
