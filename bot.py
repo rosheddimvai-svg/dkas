@@ -1,6 +1,6 @@
 import telegram
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, JobQueue
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import asyncio
 import time
 from datetime import datetime, timedelta
