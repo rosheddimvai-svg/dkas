@@ -15,11 +15,13 @@ ADMIN_ID = "@Soyabur_AS_leaders" # এখানে আপনার অ্যা�
 # বাংলাদেশ টাইমজোন সেট করা
 BANGLADESH_TIMEZONE = pytz.timezone('Asia/Dhaka')
 
-# শেষ সিগন্যাল পাঠানোর সময় সংরক্ষণ করার জন্য একটি ভেরিয়েবল
-last_signal_time = 0
+# প্রতিটি মিনিটের জন্য একটি নির্দিষ্ট সিগন্যাল তৈরি এবং সংরক্ষণ করার জন্য গ্লোবাল ভেরিয়েবল
+current_minute_signal = None
+last_minute_checked = -1
 
 # সিগন্যাল তৈরি করবে
-def generate_random_signal():
+def generate_signal_for_minute(minute):
+    random.seed(minute) # মিনিটের উপর ভিত্তি করে র্যান্ডম সিগন্যাল তৈরি করা
     return random.choice(["Big", "Small"])
 
 # /start কমান্ড হ্যান্ডেলার: এটি মেনু বাটন দেখাবে
@@ -47,30 +49,24 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 # সিগন্যাল পাওয়ার জন্য হ্যান্ডেলার
 async def get_signal_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    global last_signal_time
-    current_time = int(time.time())
+    global current_minute_signal, last_minute_checked
     
-    # শেষ সিগন্যাল পাঠানোর পর ৬০ সেকেন্ড পার হয়েছে কিনা তা যাচাই
-    if current_time - last_signal_time < 60:
-        await update.message.reply_text("দুঃখিত! আপনি একই মিনিটে একাধিক সিগন্যাল নিতে পারবেন না। দয়া করে একটু অপেক্ষা করুন।")
-        return
-    
-    # বর্তমান তারিখ এবং সময় তৈরি করা
     current_datetime_bst = datetime.now(BANGLADESH_TIMEZONE)
-    formatted_time = current_datetime_bst.strftime('%H:%M:%S')
+    current_minute = current_datetime_bst.minute
     
-    # একটি র্যান্ডম সিগন্যাল তৈরি করা
-    signal = generate_random_signal()
+    # নতুন মিনিটে প্রবেশ করলে সিগন্যাল আপডেট করা
+    if current_minute != last_minute_checked:
+        current_minute_signal = generate_signal_for_minute(current_minute)
+        last_minute_checked = current_minute
+    
+    formatted_time = current_datetime_bst.strftime('%H:%M:%S')
     
     signal_message = (
         f"⏰ **বর্তমান সময়:** {formatted_time}\n"
-        f"🔮 **আমাদের পরবর্তী সিগন্যাল:** `{signal}`"
+        f"🔮 **আমাদের পরবর্তী সিগন্যাল:** `{current_minute_signal}`"
     )
     
     await update.message.reply_text(signal_message, parse_mode='Markdown')
-    
-    # শেষ সিগন্যাল পাঠানোর সময় আপডেট করা
-    last_signal_time = current_time
 
 # কন্টাক্ট এডমিন হ্যান্ডেলার
 async def contact_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
