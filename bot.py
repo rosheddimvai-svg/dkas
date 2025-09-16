@@ -1,61 +1,26 @@
 import telegram
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import requests
-import json
-import random
+import asyncio
 import time
+from datetime import datetime
+import pytz
 
 # --- আপনার দেওয়া তথ্য ---
 BOT_TOKEN = "7845699149:AAEEKpzHFt5gd6LbApfXSsE8de64f8IaGx0"
-CURRENT_API = 'https://api.bdg88zf.com/api/webapi/GetGameIssue'
-HISTORY_API = 'https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json'
 # --- তথ্য শেষ ---
 
-# API থেকে বর্তমান পিরিয়ড সংগ্রহ করবে (ডায়নামিক টাইমস্ট্যাম্প সহ)
-async def get_current_period(api_url):
-    try:
-        REQUEST_DATA = { 
-            "typeId": 1, 
-            "language": 0, 
-            "random": "e7fe6c090da2495ab8290dac551ef1ed", 
-            "signature": "1F390E2B2D8A55D693E57FD905AE73A7", 
-            "timestamp": int(time.time()) 
-        }
-        response = requests.post(api_url, json=REQUEST_DATA)
-        data = response.json()
-        current_period = data['data']['issueId']
-        return current_period
-    except Exception as e:
-        print(f"Error fetching current period: {e}")
-        return None
+# বাংলাদেশ টাইমজোন সেট করা
+BANGLADESH_TIMEZONE = pytz.timezone('Asia/Dhaka')
 
-# API থেকে খেলার ইতিহাস সংগ্রহ করবে
-async def get_history_results(api_url):
-    try:
-        response = requests.get(api_url)
-        data = response.json()
-        history_list = data['data']['history']
-        return history_list
-    except Exception as e:
-        print(f"Error fetching history: {e}")
-        return []
+# শেষ সিগন্যাল পাঠানোর সময় সংরক্ষণ করার জন্য একটি ভেরিয়েবল
+last_signal_time = 0
 
 # সিগন্যাল তৈরি করবে
-def generate_signal(history):
-    if not history:
-        return "No history available to generate a signal."
-    
-    latest_result = history[0]
-    
-    if latest_result['isBig']:
-        return "Big"
-    elif latest_result['isSmall']:
-        return "Small"
-    else:
-        return "No clear signal based on history."
+def generate_random_signal():
+    return random.choice(["Big", "Small"])
 
-# /start কমান্ড হ্যান্ডেলার: এটি চারটি বাটন দেখাবে
+# /start কমান্ড হ্যান্ডেলার: এটি মেনু বাটন দেখাবে
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
         [KeyboardButton("💰 Get Signal")],
@@ -78,29 +43,32 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif text == "✍️ Registration":
         await registration(update, context)
 
-# সিগন্যাল পাওয়ার জন্য হ্যান্ডেলার (বাটন থেকে কল হলে)
+# সিগন্যাল পাওয়ার জন্য হ্যান্ডেলার
 async def get_signal_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    try:
-        await update.message.reply_text("সিগন্যাল তৈরি করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...")
-        
-        current_period = await get_current_period(CURRENT_API)
-        history = await get_history_results(HISTORY_API)
-        
-        if current_period is None or not history:
-            await update.message.reply_text("Sorry, I could not fetch the game information. Please try again later.")
-            return
-        
-        signal = generate_signal(history)
-        
-        signal_message = (
-            f"🎯 **বর্তমান পিরিয়ড:** {current_period}\n"
-            f"💡 **আমাদের সিগন্যাল:** পরবর্তী ফলাফল `{signal}` হতে পারে।"
-        )
-        
-        await update.message.reply_text(signal_message, parse_mode='Markdown')
-        
-    except Exception as e:
-        await update.message.reply_text(f"সিগন্যাল পেতে সমস্যা হয়েছে। ({e})")
+    global last_signal_time
+    current_time = int(time.time())
+    
+    # শেষ সিগন্যাল পাঠানোর পর ৬০ সেকেন্ড পার হয়েছে কিনা তা যাচাই
+    if current_time - last_signal_time < 60:
+        await update.message.reply_text("দুঃখিত! আপনি একই মিনিটে একাধিক সিগন্যাল নিতে পারবেন না। দয়া করে একটু অপেক্ষা করুন।")
+        return
+    
+    # বর্তমান পিরিয়ড আইডি তৈরি করা
+    current_datetime_bst = datetime.now(BANGLADESH_TIMEZONE)
+    period_id = current_datetime_bst.strftime('%Y%m%d%H%M')
+    
+    # একটি র্যান্ডম সিগন্যাল তৈরি করা
+    signal = generate_random_signal()
+    
+    signal_message = (
+        f"🎯 **বর্তমান পিরিয়ড:** {period_id}\n"
+        f"💡 **আমাদের সিগন্যাল:** পরবর্তী ফলাফল `{signal}` হতে পারে।"
+    )
+    
+    await update.message.reply_text(signal_message, parse_mode='Markdown')
+    
+    # শেষ সিগন্যাল পাঠানোর সময় আপডেট করা
+    last_signal_time = current_time
 
 # কন্টাক্ট এডমিন হ্যান্ডেলার
 async def contact_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
