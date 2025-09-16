@@ -1,6 +1,6 @@
 import telegram
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import requests
 import json
 import random
@@ -12,7 +12,7 @@ CURRENT_API = 'https://api.bdg88zf.com/api/webapi/GetGameIssue'
 HISTORY_API = 'https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json'
 # --- তথ্য শেষ ---
 
-# API থেকে বর্তমান পিরিয়ড (period) সংগ্রহ করবে
+# API থেকে বর্তমান পিরিয়ড সংগ্রহ করবে (ডায়নামিক টাইমস্ট্যাম্প সহ)
 async def get_current_period(api_url):
     try:
         REQUEST_DATA = { 
@@ -30,7 +30,7 @@ async def get_current_period(api_url):
         print(f"Error fetching current period: {e}")
         return None
 
-# API থেকে খেলার ইতিহাস (history) সংগ্রহ করবে
+# API থেকে খেলার ইতিহাস সংগ্রহ করবে
 async def get_history_results(api_url):
     try:
         response = requests.get(api_url)
@@ -58,34 +58,36 @@ def generate_signal(history):
 # /start কমান্ড হ্যান্ডেলার: এটি চারটি বাটন দেখাবে
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
-        [InlineKeyboardButton("💰 Get Signal", callback_data='get_signal')],
-        [InlineKeyboardButton("👨‍💻 Contact Admin", url="https://t.me/Soyabur_AS_leaders")],
-        [InlineKeyboardButton("📜 Rules", callback_data='rules')],
-        [InlineKeyboardButton("✍️ Registration", url="https://dkwin12.com/#/register?invitationCode=82626111964")]
+        [KeyboardButton("💰 Get Signal")],
+        [KeyboardButton("👨‍💻 Contact Admin"), KeyboardButton("📜 Rules")],
+        [KeyboardButton("✍️ Registration")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text('স্বাগতম! নিচের অপশনগুলো থেকে আপনার প্রয়োজনীয় বাটনটি নির্বাচন করুন:', reply_markup=reply_markup)
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    await update.message.reply_text('স্বাগতম! নিচের মেনু থেকে আপনার প্রয়োজনীয় বাটনটি নির্বাচন করুন:', reply_markup=reply_markup)
 
-# বাটনগুলোর জন্য হ্যান্ডেলার
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
+# মেসেজ হ্যান্ডেলার: টেক্সট বার্তার জন্য
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    text = update.message.text
     
-    if query.data == 'get_signal':
-        await get_signal_callback(update, context)
-    elif query.data == 'rules':
+    if text == "💰 Get Signal":
+        await get_signal_message(update, context)
+    elif text == "👨‍💻 Contact Admin":
+        await contact_admin(update, context)
+    elif text == "📜 Rules":
         await rules(update, context)
+    elif text == "✍️ Registration":
+        await registration(update, context)
 
 # সিগন্যাল পাওয়ার জন্য হ্যান্ডেলার (বাটন থেকে কল হলে)
-async def get_signal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def get_signal_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="সিগন্যাল তৈরি করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...")
+        await update.message.reply_text("সিগন্যাল তৈরি করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...")
         
         current_period = await get_current_period(CURRENT_API)
         history = await get_history_results(HISTORY_API)
         
         if current_period is None or not history:
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I could not fetch the game information. Please try again later.")
+            await update.message.reply_text("Sorry, I could not fetch the game information. Please try again later.")
             return
         
         signal = generate_signal(history)
@@ -95,10 +97,14 @@ async def get_signal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"💡 **আমাদের সিগন্যাল:** পরবর্তী ফলাফল `{signal}` হতে পারে।"
         )
         
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=signal_message, parse_mode='Markdown')
+        await update.message.reply_text(signal_message, parse_mode='Markdown')
         
     except Exception as e:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"সিগন্যাল পেতে সমস্যা হয়েছে। ({e})")
+        await update.message.reply_text(f"সিগন্যাল পেতে সমস্যা হয়েছে। ({e})")
+
+# কন্টাক্ট এডমিন হ্যান্ডেলার
+async def contact_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("👨‍💻 অ্যাডমিন এর সাথে যোগাযোগ করতে এখানে ক্লিক করুন: @Soyabur_AS_leaders")
 
 # রুলস দেখানোর জন্য হ্যান্ডেলার
 async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -108,13 +114,17 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "2. সিগন্যালগুলো অতীত ফলাফলের উপর ভিত্তি করে তৈরি করা হয় এবং সবসময় সঠিক নাও হতে পারে।\n"
         "3. খেলাটি নিজ দায়িত্বে খেলবেন।\n"
     )
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=rules_text, parse_mode='Markdown')
+    await update.message.reply_text(rules_text, parse_mode='Markdown')
+
+# রেজিস্ট্রেশন হ্যান্ডেলার
+async def registration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("✍️ রেজিস্ট্রেশন করতে এখানে ক্লিক করুন: https://dkwin12.com/#/register?invitationCode=82626111964")
 
 def main() -> None:
     application = Application.builder().token(BOT_TOKEN).build()
     
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
     
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
