@@ -1,17 +1,16 @@
 import telegram
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import asyncio
-import time
 from datetime import datetime, timedelta
 import pytz
 import random
+import os
 
 # --- আপনার দেওয়া তথ্য ---
 BOT_TOKEN = "7845699149:AAEEKpzHFt5gd6LbApfXSsE8de64f8IaGx0"
-ADMIN_ID = "@Soyabur_AS_leaders"
-CHANNEL_NAME = "𝑨𝑺 𝑶𝑭𝑭𝑰𝑪𝑰𝑨𝑳 𝑪𝑯𝑨𝑵𝑵𝒆𝑳"
-CHANNEL_ID = -1002787846366
+ADMIN_ID = "@Soyabur_AS_leaders" # এখানে আপনার অ্যাডমিন আইডি দিন
+CHANNEL_NAME = "𝑨𝑺 𝑶𝑭𝑭𝑰𝑪𝑰𝑨𝑳 𝑪𝑯𝑨𝑵𝑵𝑬𝑳" # এখানে আপনার চ্যানেলের নাম দিন
+CHANNEL_ID = -1002787846366 # আপনার দেওয়া চ্যানেল আইডি
 # --- তথ্য শেষ ---
 
 # বাংলাদেশ টাইমজোন সেট করা
@@ -68,7 +67,10 @@ async def send_scheduled_signal(context: ContextTypes.DEFAULT_TYPE) -> None:
         f"**──────────────────────**"
     )
     
-    await context.bot.send_message(chat_id=CHANNEL_ID, text=signal_message, parse_mode='Markdown')
+    try:
+        await context.bot.send_message(chat_id=CHANNEL_ID, text=signal_message, parse_mode='Markdown')
+    except telegram.error.TelegramError as e:
+        print(f"Failed to send message to channel: {e}")
 
 # /start কমান্ড হ্যান্ডেলার: এটি ওয়েলকাম মেসেজ এবং মেনু বাটন দেখাবে
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -179,7 +181,13 @@ def main() -> None:
     job_queue = application.job_queue
     job_queue.run_repeating(send_scheduled_signal, interval=5*60, first=0) # প্রতি ৫ মিনিটে সিগন্যাল পাঠাবে
     
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # ওয়েবহুক সেটআপ
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        url_path=BOT_TOKEN,
+        webhook_url=f"https://your-app-name.onrender.com/{BOT_TOKEN}"
+    )
 
 if __name__ == '__main__':
     main()
