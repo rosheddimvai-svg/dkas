@@ -1,10 +1,14 @@
 import telegram
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, JobQueue
 from datetime import datetime, timedelta
 import pytz
 import random
 import os
+import logging
+
+# লগিং সেটআপ
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 # --- আপনার দেওয়া তথ্য ---
 BOT_TOKEN = "7845699149:AAEEKpzHFt5gd6LbApfXSsE8de64f8IaGx0"
@@ -69,8 +73,9 @@ async def send_scheduled_signal(context: ContextTypes.DEFAULT_TYPE) -> None:
     
     try:
         await context.bot.send_message(chat_id=CHANNEL_ID, text=signal_message, parse_mode='Markdown')
+        logging.info("Scheduled signal sent successfully.")
     except telegram.error.TelegramError as e:
-        print(f"Failed to send message to channel: {e}")
+        logging.error(f"Failed to send message to channel: {e}")
 
 # /start কমান্ড হ্যান্ডেলার: এটি ওয়েলকাম মেসেজ এবং মেনু বাটন দেখাবে
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -171,23 +176,24 @@ async def registration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text("✍️ রেজিস্ট্রেশন করতে এখানে ক্লিক করুন: https://dkwin12.com/#/register?invitationCode=82626111964")
 
 def main() -> None:
-    application = Application.builder().token(BOT_TOKEN).build()
-    
-    # কমান্ড এবং মেসেজ হ্যান্ডেলার
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+    try:
+        application = Application.builder().token(BOT_TOKEN).build()
+        
+        # কমান্ড এবং মেসেজ হ্যান্ডেলার
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
-    # স্বয়ংক্রিয় সিগন্যাল পাঠানোর জন্য JobQueue
-    job_queue = application.job_queue
-    job_queue.run_repeating(send_scheduled_signal, interval=5*60, first=0) # প্রতি ৫ মিনিটে সিগন্যাল পাঠাবে
-    
-    # ওয়েবহুক সেটআপ
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 5000)),
-        url_path=BOT_TOKEN,
-        webhook_url=f"https://your-app-name.onrender.com/{BOT_TOKEN}"
-    )
+        # স্বয়ংক্রিয় সিগন্যাল পাঠানোর জন্য JobQueue
+        job_queue = application.job_queue
+        if job_queue:
+            job_queue.run_repeating(send_scheduled_signal, interval=5*60, first=0) # প্রতি ৫ মিনিটে সিগন্যাল পাঠাবে
+        else:
+            logging.warning("JobQueue is not available or initialized incorrectly.")
+        
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+        
+    except Exception as e:
+        logging.error(f"An error occurred in the main function: {e}")
 
 if __name__ == '__main__':
     main()
